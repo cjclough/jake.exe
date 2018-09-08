@@ -1,8 +1,9 @@
 import discord
 import json
+import random
 import re
 import asyncio
-from markov import *
+from markov import do_markov
 
 from time import sleep
 from discord.ext import commands
@@ -48,10 +49,10 @@ async def random_message_loop():
         await asyncio.sleep(random.randint(900, 1800))
 
 async def type_message(channel):
-    sleep(2)
+    asyncio.sleep(2)
     async with channel.typing():
         message = do_markov("./config/history.txt")
-        sleep(random.randint(4,6))
+        asyncio.sleep(random.randint(4,6))
 
     await channel.send(message)
 
@@ -84,11 +85,12 @@ async def on_message(message):
        with open("./config/history.txt", "a") as _file:
             _file.write(msg + "\n")            
 
-
+# generate a sentence
 @bot.command()
 async def markov(ctx):
     await type_message(ctx.channel)
 
+# get all messages from server
 @bot.command()
 async def load(ctx):
     if ctx.message.author.id == bot.owner_id:
@@ -106,12 +108,15 @@ async def load(ctx):
     else:
         await ctx.send("Access denied.")
 
+# log out
 @bot.command()
 async def q(ctx):
     if ctx.message.author.id == bot.owner_id:
         await bot.logout()
     else:
         await ctx.send("Access denied.")
-                   
+
+# create background message loop                  
 bot.loop.create_task(random_message_loop())
+# run
 bot.run(token)
