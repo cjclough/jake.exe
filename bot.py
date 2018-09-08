@@ -7,83 +7,89 @@ from markov import do_markov
 
 from time import sleep
 from discord.ext import commands
+from helper import is_owner
 
 # set config variables
 with open("./config/config.json") as cfg:
     config = json.load(cfg)
 
-token = config["token"]
+token = config["token"] 
 
 bot = commands.Bot(command_prefix='.')
 
-# make sure the message is clean of links, special chars, etc
-def sanitize(msg):
-    # remove links
-    msg = re.sub(r'https?:\/\/.*', '', msg)
-    # remove emojis and mentions
-    msg = re.sub(r'<.*>', '', msg)
-    # remove special characters
-    msg = re.sub('[^A-Za-z0-9 \/\',.]+', '', msg)
-    # remove whitespace
-    msg = msg.strip()
-
-    return msg
-
+# create background message loop
 async def random_message_loop():
     await bot.wait_until_ready()
     while not bot.is_closed():
         channel = bot.get_channel(461634259212435468)
         await type_message(channel)
+        await asyncio.sleep(random.randint(900, 1200))
 
-        def check(m):
-            return m.channel == channel
+        # def check(m):
+        #     return m.channel == channel
+        # while True:
+        #     try:
+        #         await bot.wait_for('message', check = check, timeout=10)
+        #     except asyncio.TimeoutError:
+        #         break
+        #     await type_message(channel)
 
-        while True:
-            try:
-                await bot.wait_for('message', check = check, timeout=10)
-            except asyncio.TimeoutError:
-                break
-            
-            await type_message(channel)
+        
 
-        await asyncio.sleep(random.randint(900, 1800))
+# make sure the message is clean of links, special chars, etc
+def sanitize(message):
+    # remove links
+    message = re.sub(r'https?:\/\/.*', '', message)
+    # remove emojis and mentions
+    message = re.sub(r'<.*>', '', message)
+    # remove special characters
+    message = re.sub('[^A-Za-z0-9 \/\',.?]+', '', message)
+    # remove whitespace
+    message = message.strip()
 
-async def type_message(channel):
-    asyncio.sleep(2)
-    async with channel.typing():
-        message = do_markov("./config/history.txt")
-        asyncio.sleep(random.randint(4,6))
-
-    await channel.send(message)
+    return message
 
 def is_command(message):
-    prefixes = ['.', '/', '!', '$']
+    prefixes = ['.', '/', '!', '$', '`']
     for symbol in prefixes:
         if message.startswith(symbol):
             return True
     return False
 
+async def type_message(channel):
+    await asyncio.sleep(2)
+    async with channel.typing():
+        message = do_markov("./config/history.txt")
+        await asyncio.sleep(random.randint(4,6))
+
+    await channel.send(message)
+
 # log in status
 @bot.event
 async def on_ready():
-    bot.owner_id = 137723737922338816
-    print('Logged in as') 
+    print('Logged in as')
     print(bot.user.name)
     print(bot.user.id)
     print('------')
+    await bot.change_presence(activity=discord.Game("markov.exe"))
 
 @bot.event
-async def on_message(message):  
+async def on_message(message):
     await bot.process_commands(message)
 
     if "<@"+str(bot.user.id)+">" in message.content:
         channel = message.channel
-        type_message(channel)
+        await type_message(channel)
+
+    if "jake" in message.content.lower():
+        channel = message.channel
+        await type_message(channel)
 
     if message.author.id == bot.owner_id and not is_command(message.content):
-       msg = sanitize(message.content) 
+       message = sanitize(message.content)
        with open("./config/history.txt", "a") as _file:
-            _file.write(msg + "\n")            
+            _file.write(message + "\n")
+
 
 # generate a sentence
 @bot.command()
@@ -92,31 +98,28 @@ async def markov(ctx):
 
 # get all messages from server
 @bot.command()
+@is_owner()
 async def load(ctx):
-    if ctx.message.author.id == bot.owner_id:
-        channels = bot.get_all_channels()
-        for channel in channels:
-            if not (channel.name == "spam"):
-                async for msg in channel.history(limit=None, reverse=True):
-                    if msg.author.id == bot.owner_id and not is_command(msg.content):
-                        message = sanitize(msg.content)
-                        # print(message)
+    channels = bot.get_all_channels()
+    for channel in channels:
+        if not (channel.name == "spam"):
+            async for message in channel.history(limit=None, reverse=True):
+                if message.author.id == bot.owner_id and not is_command(message.content):
+                    message = sanitize(message.content)
+                    if len(message) > 0:
                         with open("./config/history.txt", "a") as _file:
                             _file.write(message + "\n")
 
-        await ctx.send("Loading complete.")
-    else:
-        await ctx.send("Access denied.")
+    await ctx.send("Loading complete.")
 
 # log out
 @bot.command()
+@is_owner()
 async def q(ctx):
-    if ctx.message.author.id == bot.owner_id:
-        await bot.logout()
-    else:
-        await ctx.send("Access denied.")
+    await ctx.channel.send("Logging off.")
+    await bot.logout()
 
-# create background message loop                  
 bot.loop.create_task(random_message_loop())
+
 # run
 bot.run(token)

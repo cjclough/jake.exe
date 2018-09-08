@@ -32,7 +32,7 @@ def build_sentence(matrix, corpus, n_words):
     if random.randint(1,100) >= 70:
         sentence += "?"
     else:
-        sentence += "."   
+        sentence += "."
 
     return sentence
 
