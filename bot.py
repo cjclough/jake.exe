@@ -13,28 +13,10 @@ from helper import is_owner
 with open("./config/config.json") as cfg:
     config = json.load(cfg)
 
-token = config["token"] 
+token = config["jtoken"] 
+owner = config["owner"]
 
 bot = commands.Bot(command_prefix='.')
-
-# create background message loop
-async def random_message_loop():
-    await bot.wait_until_ready()
-    while not bot.is_closed():
-        channel = bot.get_channel(461634259212435468)
-        await type_message(channel)
-        await asyncio.sleep(random.randint(900, 1200))
-
-        # def check(m):
-        #     return m.channel == channel
-        # while True:
-        #     try:
-        #         await bot.wait_for('message', check = check, timeout=10)
-        #     except asyncio.TimeoutError:
-        #         break
-        #     await type_message(channel)
-
-        
 
 # make sure the message is clean of links, special chars, etc
 def sanitize(message):
@@ -43,9 +25,14 @@ def sanitize(message):
     # remove emojis and mentions
     message = re.sub(r'<.*>', '', message)
     # remove special characters
-    message = re.sub('[^A-Za-z0-9 \/\',.?]+', '', message)
+    message = re.sub('[^A-Za-z0-9 /\',.?\"]+', '', message)
     # remove whitespace
     message = message.strip()
+
+    if len(message) > 1:
+        message = message.capitalize()
+        if not message.endswith(".") or message.endswith("?"):
+            message += "."
 
     return message
 
@@ -71,6 +58,7 @@ async def on_ready():
     print(bot.user.name)
     print(bot.user.id)
     print('------')
+    bot.user_id = 137723737922338816
     await bot.change_presence(activity=discord.Game("markov.exe"))
 
 @bot.event
@@ -81,9 +69,22 @@ async def on_message(message):
         channel = message.channel
         await type_message(channel)
 
+        def check(m):
+            return (m.channel == channel) and ("<@"+str(bot.user.id)+">" not in m.content) and (m.author.id != bot.user.id)
+
+        while True:
+            try:
+                await bot.wait_for('message', check = check, timeout=20)
+            except asyncio.TimeoutError:
+                break
+            await type_message(channel)
+
     if "jake" in message.content.lower():
         channel = message.channel
         await type_message(channel)
+
+    if isinstance(message.channel, discord.DMChannel) and (message.author.id != bot.user.id):
+        await type_message(message.channel)
 
     if message.author.id == bot.owner_id and not is_command(message.content):
        message = sanitize(message.content)
@@ -102,24 +103,23 @@ async def markov(ctx):
 async def load(ctx):
     channels = bot.get_all_channels()
     for channel in channels:
+        await ctx.channel.send("Collecting messages in #"+channel.name)
         if not (channel.name == "spam"):
             async for message in channel.history(limit=None, reverse=True):
-                if message.author.id == bot.owner_id and not is_command(message.content):
+                if message.author.id == owner and not is_command(message.content):
                     message = sanitize(message.content)
                     if len(message) > 0:
                         with open("./config/history.txt", "a") as _file:
                             _file.write(message + "\n")
-
     await ctx.send("Loading complete.")
 
 # log out
 @bot.command()
 @is_owner()
 async def q(ctx):
-    await ctx.channel.send("Logging off.")
     await bot.logout()
 
-bot.loop.create_task(random_message_loop())
+#bot.loop.create_task(random_message_loop())
 
 # run
 bot.run(token)
