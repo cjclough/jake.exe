@@ -13,7 +13,7 @@ from helper import is_owner
 with open("./config/config.json") as cfg:
     config = json.load(cfg)
 
-token = config["jtoken"] 
+token = config["token"]
 owner = config["owner"]
 
 bot = commands.Bot(command_prefix='.')
