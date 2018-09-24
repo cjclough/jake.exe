@@ -3,8 +3,8 @@ import json
 import random
 import re
 import asyncio
-from markov import do_markov
 
+from markov import do_markov
 from time import sleep
 from discord.ext import commands
 from helper import is_owner
@@ -44,7 +44,8 @@ def is_command(message):
     return False
 
 async def type_message(channel, filename):
-    await asyncio.sleep(2)
+    await asyncio.sleep(4)
+
     async with channel.typing():
         message = do_markov(filename)
         await asyncio.sleep(random.randint(4,6))
@@ -58,7 +59,7 @@ async def on_ready():
     print(bot.user.name)
     print(bot.user.id)
     print('------')
-    bot.owner_id = 137723737922338816
+    bot.owner_id = owner
     await bot.change_presence(activity=discord.Game("markov.exe"))
 
 @bot.event
@@ -70,7 +71,7 @@ async def on_message(message):
         await type_message(channel, "./config/"+str(message.guild.id)+"-"+str(message.author.id)+"-history.txt")
 
         def check(m):
-            return (m.channel == channel) and ("<@"+str(bot.user.id)+">" not in m.content) and (m.author.id != bot.user.id) and (m.author.id == author)
+            return (m.channel == channel) and (str(bot.user.id) not in m.content) and (m.author.id != bot.user.id) and (m.author.id == author)
 
         while True:
             try:
@@ -83,13 +84,10 @@ async def on_message(message):
     if isinstance(message.channel, discord.DMChannel) and (message.author.id != bot.user.id):
         await type_message(message.channel, "./config/"+str(message.guild.id)+"-"+str(message.author.id)+"-history.txt")
 
-
 # generate a sentence
 @bot.command()
 async def speak(ctx):
     await type_message(ctx.channel, "./config/"+str(ctx.guild.id)+"-"+str(ctx.author.id)+"-history.txt")
-
-
 
 # get all messages from server
 @bot.command()
