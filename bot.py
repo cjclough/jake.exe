@@ -37,17 +37,16 @@ def sanitize(message):
     return message
 
 def is_command(message):
-    prefixes = ['.', '/', '!', '$', '`']
+    prefixes = ['.', '/', '!', '$', '`', ';;']
     for symbol in prefixes:
         if message.startswith(symbol):
             return True
     return False
 
 async def type_message(channel, filename):
-    await asyncio.sleep(4)
+    message = do_markov(filename)
 
     async with channel.typing():
-        message = do_markov(filename)
         await asyncio.sleep(random.randint(4,6))
 
     await channel.send(message)
@@ -68,7 +67,7 @@ async def on_message(message):
 
     if str(bot.user.id) in message.content:
         channel = message.channel
-        await type_message(channel, "./config/"+str(message.guild.id)+"-"+str(message.author.id)+"-history.txt")
+        await type_message(channel, "./config/"+str(message.guild.id)+"-history.txt")
 
         def check(m):
             return (m.channel == channel) and (str(bot.user.id) not in m.content) and (m.author.id != bot.user.id) and (m.author.id == author)
@@ -79,37 +78,65 @@ async def on_message(message):
                 await bot.wait_for('message', check = check, timeout=20)
             except asyncio.TimeoutError:
                 break
-            await type_message(channel, "./config/"+str(message.guild.id)+"-"+str(message.author.id)+"-history.txt")
-
-    if isinstance(message.channel, discord.DMChannel) and (message.author.id != bot.user.id):
-        await type_message(message.channel, "./config/"+str(message.guild.id)+"-"+str(message.author.id)+"-history.txt")
+            await type_message(channel, "./config/"+str(message.guild.id)+"-history.txt")
 
 # generate a sentence
 @bot.command()
 async def speak(ctx):
-    await type_message(ctx.channel, "./config/"+str(ctx.guild.id)+"-"+str(ctx.author.id)+"-history.txt")
+    channel = ctx.channel
+    await type_message(channel, "./config/"+str(ctx.guild.id)+"-"+str(ctx.author.id)+"-history.txt")
+
+    def check(m):
+        return (m.channel == channel) and (str(bot.user.id) not in m.content) and (m.author.id != bot.user.id) and (m.author.id == author)
+
+    while True:
+        try:
+            author = ctx.message.author.id
+            await bot.wait_for('message', check = check, timeout=20)
+        except asyncio.TimeoutError:
+            break
+        await type_message(channel, "./config/"+str(ctx.guild.id)+"-"+str(ctx.author.id)+"-history.txt")
 
 # get all messages from server
 @bot.command()
-async def load(ctx):
+async def loadself(ctx):
     channels = ctx.guild.text_channels
+    await ctx.channel.send("growing my brain with all your messages. this might take a minute.")
     for channel in channels:
-        if not channel.is_nsfw():
-            await ctx.channel.send("Collecting messages in #"+channel.name)
-            async for message in channel.history(limit=None, reverse=True):
-                if message.author.id == ctx.author.id and not is_command(message.content):
-                    message = sanitize(message.content)
-                    if len(message) > 0:
-                        server = ctx.guild.id
-                        user = ctx.author.id
-                        with open("./config/"+str(server)+"-"+str(user)+"-history.txt", "a") as _file:
-                            _file.write(message + "\n")
-    await ctx.send("Loading complete.")
+        try:
+            if not channel.is_nsfw():
+                async for message in channel.history(limit=None, reverse=True):
+                    if message.author.id == ctx.author.id and not is_command(message.content):
+                        message = sanitize(message.content)
+                        if len(message) > 0:
+                            with open("./config/"+str(ctx.guild.id)+"-"+str(ctx.author.id)+"-history.txt", "a") as _file:
+                                _file.write(message + "\n")
+        except discord.errors.Forbidden:
+            continue
+    await ctx.send("big brain mode achieved. let's talk.")
+
+@bot.command()
+async def loadserver(ctx):
+    channels = ctx.guild.text_channels
+    await ctx.send("growing my brain with all the messages in here. this may take a minute.")
+    for channel in channels:
+        try:
+            if not channel.is_nsfw():
+                async for message in channel.history(limit=None, reverse=True):
+                    if not is_command(message.content) and not message.author.bot:
+                        message = sanitize(message.content)
+                        if len(message) > 0:
+                            server = ctx.guild.id
+                            with open("./config/"+str(server)+"-history.txt", "a") as _file:
+                                _file.write(message + "\n")
+        except discord.errors.Forbidden:
+            continue
+    await ctx.send("big brain mode achieved. talk to me.")
 
 # log out
 @bot.command()
 @is_owner()
-async def q(ctx):
+async def quit(ctx):
     await bot.logout()
 
 # run

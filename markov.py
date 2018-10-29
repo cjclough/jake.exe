@@ -22,7 +22,6 @@ def build_dict(corpus):
     return word_dict    
 
 def build_sentence(matrix, corpus, max_words):
-
     while True:
         while True:
             chain = [np.random.choice(corpus)]
@@ -38,8 +37,8 @@ def build_sentence(matrix, corpus, max_words):
     sentence = " ". join(chain)
     sentence = sentence[0:len(sentence)].lower()
 
-    if random.randint(1,100) > 80:
-        sentence = "?".join(sentence.rsplit(".", 1))
+    # if random.randint(1,100) > 80:
+    #     sentence = "?".join(sentence.rsplit(".", 1))
         
     return sentence
 
